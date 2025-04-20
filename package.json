@@ -1,0 +1,21 @@
+{
+  "name": "foque",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "keywords": [],
+  "license": "ISC",
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.0.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.2"
+  },
+  "dependencies": {
+    "excalibur": "^0.30.3"
+  }
+}
