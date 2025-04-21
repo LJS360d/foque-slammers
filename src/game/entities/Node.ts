@@ -20,7 +20,7 @@ export class Node extends Actor {
   public owner: 'player' | 'opponent';
   public hp: number;
   public maxHp: number;
-  public attack: number;
+  private _attack: number;
   public startColor: Color;
   public isCharging: boolean = false;
   private startChargePosition: Vector = Vector.Zero;
@@ -59,7 +59,7 @@ export class Node extends Actor {
     this.owner = owner;
     this.hp = hp;
     this.maxHp = hp;
-    this.attack = attack;
+    this._attack = attack;
     this.effect = effect;
 
     this.startColor = this.owner === 'player' ? Node.PLAYER_COLOR : Node.OPPONENT_COLOR;
@@ -91,6 +91,15 @@ export class Node extends Actor {
     return `HP: ${this.hp}/${this.maxHp} ATK: ${this.attack}`;
   }
 
+  public set attack(value: number) {
+    this._attack = value;
+    this.updateLabel();
+  }
+
+  public get attack(): number {
+    return this._attack;
+  }
+
   update(engine: Engine, delta: number) {
     super.update(engine, delta);
 
@@ -108,7 +117,7 @@ export class Node extends Actor {
     this.pointer.useColliderShape = true;
   }
 
-  onCollisionEnd(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
+  onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
     if (other.owner instanceof Node) {
       if (this.vel.magnitude > 0.01) {
         if (other.owner.owner !== this.owner) {
@@ -117,11 +126,10 @@ export class Node extends Actor {
           other.owner.applyEffect(this.effect);
         }
         other.owner.vel = this.vel.clone()
-        this.vel = this.vel.scale(-1);
+        this.vel = this.vel.scale(-0.94);
       }
       return;
     }
-    this.vel = reflectVector(this.vel, other.worldPos.normal()).scale(2);
   }
 
   public onPointerDown = (event: PointerEvent) => {
@@ -176,7 +184,6 @@ export class Node extends Actor {
       }) ?? [];
       // remove first result as it is the collission with self
       collisionResults.shift()
-      console.log(collisionResults);
 
       const graphics = this.trajectoryLine.graphics.current as GraphicsGroup
       graphics.members = [new Line({

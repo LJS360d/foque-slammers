@@ -14,10 +14,10 @@ export default class Play extends Scene {
   private initialNodePositions: Map<Node, Vector> = new Map();
 
   onInitialize(engine: Engine) {
-    const board = new Arena(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
-    this.add(board);
+    const arena = new Arena(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
+    this.add(arena);
 
-    board.playerPositions.forEach((pos, i) => {
+    arena.playerPositions.forEach((pos, i) => {
       const node = new Node({
         id: i + 1,
         owner: 'player',
@@ -32,7 +32,7 @@ export default class Play extends Scene {
       });
       this.playerNodes.push(node);
     });
-    board.opponentPositions.forEach((pos, i) => {
+    arena.opponentPositions.forEach((pos, i) => {
       const node = new Node({
         id: i + 1,
         owner: 'opponent',

@@ -16,4 +16,5 @@ const loader = new Loader();
 // Start the game
 game.start(loader).then(() => {
   game.goToScene('play');
+  game.showDebug(true);
 });

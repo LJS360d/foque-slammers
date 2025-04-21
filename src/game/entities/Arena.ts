@@ -1,4 +1,9 @@
-import { Actor, CollisionType, Color, Vector } from 'excalibur';
+import { Actor, Collider, CollisionContact, CollisionType, Color, Side, Vector } from 'excalibur';
+import { SpikePillar } from './obstacles/SpikePillar';
+import { SpikeWall } from './obstacles/SpikeWall';
+import { BouncePillar } from './obstacles/BouncePillar';
+import { reflectVector } from '../../utils/vector';
+import { Node } from './Node';
 
 export class Arena extends Actor {
   private static readonly WALL_THICKNESS = 500;
@@ -50,6 +55,13 @@ export class Arena extends Actor {
     this.addChild(rightWall);
     this.halfHeight = height / 2;
     this.halfWidth = width / 2;
+    this.addObstaclesRandom();
+  }
+
+  onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
+    if (other.owner instanceof Node) {
+      other.owner.vel = reflectVector(other.owner.vel, contact.normal).scale(0.94);
+    }
   }
 
   public get playerPositions(): Vector[] {
@@ -80,5 +92,18 @@ export class Arena extends Actor {
       new Vector(this.halfWidth + (this.halfWidth / 1.25), this.halfHeight + (this.halfHeight / 2))
     );
     return positions;
+  }
+
+  private addObstaclesRandom() {
+    const spikePillar = new SpikePillar(this.halfWidth, this.halfHeight);
+    this.addChild(spikePillar);
+    const spikeWall1 = new SpikeWall(0, 20, "vertical", 500);
+    this.addChild(spikeWall1);
+    const spikeWall2 = new SpikeWall(20, 0, "horizontal", 500);
+    this.addChild(spikeWall2);
+    const bouncePillar1 = new BouncePillar(this.halfWidth * 2 , 40);
+    this.addChild(bouncePillar1);
+    const bouncePillar2 = new BouncePillar(this.halfWidth * 2 ,  this.halfHeight * 2);
+    this.addChild(bouncePillar2);
   }
 }
