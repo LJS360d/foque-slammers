@@ -4,6 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   root: '.',
   publicDir: 'public',
+  base: '/foque-slammers/', // for github pages deploy
   plugins: [
     basicSsl()
   ],
