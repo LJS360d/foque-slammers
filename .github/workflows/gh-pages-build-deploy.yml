@@ -4,6 +4,9 @@ on:
   push:
     branches: [ "master" ]
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -34,5 +37,3 @@ jobs:
           branch: gh-pages
           folder: dist
           repository-name: ${{ github.repository }}
-          user-name: ${{ github.event.pusher.name }}
-          user-email: ${{ github.event.pusher.email }}
