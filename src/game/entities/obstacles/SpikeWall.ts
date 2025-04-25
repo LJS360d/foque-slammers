@@ -1,6 +1,4 @@
-import { Actor, Collider, CollisionContact, CollisionType, Color, Rectangle, Side, Vector } from "excalibur";
-import { reflectVector } from "../../../utils/vector";
-import { Node } from "../Node";
+import { Actor, CollisionType, Color, Rectangle, Vector } from "excalibur";
 
 export class SpikeWall extends Actor {
   private static readonly WIDTH = 21;
@@ -23,10 +21,4 @@ export class SpikeWall extends Actor {
     this.graphics.use(graphics);
   }
 
-    onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
-      if (other.owner instanceof Node) {
-        other.owner.applyDamage(this.damage)
-        other.owner.vel = reflectVector(other.owner.vel, contact.normal).scale(0.94);
-      }
-    }
 }

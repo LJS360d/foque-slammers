@@ -1,8 +1,11 @@
-import { Engine, Loader } from 'excalibur';
+import { CollisionStartEvent, CollisionType, Engine, Loader, SolverStrategy } from 'excalibur';
 import Play from './game/scenes/SlamGame';
 
 // Create the game engine
 const game = new Engine({
+  physics: {
+    solver: SolverStrategy.Realistic,
+  },
   width: window.innerWidth,
   height: window.innerHeight,
 });

@@ -104,7 +104,7 @@ export class Node extends Actor {
     super.update(engine, delta);
 
     // Apply damping to the velocity
-    this.vel = this.vel.scale(0.94);
+    this.vel = this.vel.scale(1.01);
 
     // Optional: Stop the actor if the velocity becomes very small
     if (this.vel.magnitude < 2) { // Adjust the threshold as needed
@@ -125,12 +125,10 @@ export class Node extends Actor {
         } else if (this.effect) {
           other.owner.applyEffect(this.effect);
         }
-        other.owner.vel = this.vel.clone()
-        this.vel = this.vel.scale(-0.94);
       }
-      return;
     }
   }
+
 
   public onPointerDown = (event: PointerEvent) => {
     this.isCharging = true;

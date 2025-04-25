@@ -12,16 +12,17 @@ export class Arena extends Actor {
   private halfHeight: number;
 
   constructor(x: number, y: number, width: number, height: number) {
-    super({ name: 'board' });
+    super({ name: 'board', collisionType: CollisionType.Passive });
 
     const topWall = new Actor({
       name: 'topWall',
       pos: new Vector(x + width / 2, y - Arena.WALL_THICKNESS / 2),
       width: width,
       height: Arena.WALL_THICKNESS,
-      collisionType: CollisionType.Fixed,
+      collisionType: CollisionType.Passive,
       color: Arena.WALL_COLOR
     });
+    topWall.onCollisionStart = this.onCollisionStart.bind(this);
     this.addChild(topWall);
 
     const bottomWall = new Actor({
@@ -29,9 +30,10 @@ export class Arena extends Actor {
       pos: new Vector(x + width / 2, y + height + Arena.WALL_THICKNESS / 2),
       width: width,
       height: Arena.WALL_THICKNESS,
-      collisionType: CollisionType.Fixed,
+      collisionType: CollisionType.Passive,
       color: Arena.WALL_COLOR
     });
+    bottomWall.onCollisionStart = this.onCollisionStart.bind(this);
     this.addChild(bottomWall);
 
     const leftWall = new Actor({
@@ -39,9 +41,10 @@ export class Arena extends Actor {
       pos: new Vector(x - Arena.WALL_THICKNESS / 2, y + height / 2),
       width: Arena.WALL_THICKNESS,
       height: height + Arena.WALL_THICKNESS * 2,
-      collisionType: CollisionType.Fixed,
+      collisionType: CollisionType.Passive,
       color: Arena.WALL_COLOR
     });
+    leftWall.onCollisionStart = this.onCollisionStart.bind(this);
     this.addChild(leftWall);
 
     const rightWall = new Actor({
@@ -49,9 +52,10 @@ export class Arena extends Actor {
       pos: new Vector(x + width + Arena.WALL_THICKNESS / 2, y + height / 2),
       width: Arena.WALL_THICKNESS,
       height: height + Arena.WALL_THICKNESS * 2,
-      collisionType: CollisionType.Fixed,
+      collisionType: CollisionType.Passive,
       color: Arena.WALL_COLOR
     });
+    rightWall.onCollisionStart = this.onCollisionStart.bind(this);
     this.addChild(rightWall);
     this.halfHeight = height / 2;
     this.halfWidth = width / 2;
