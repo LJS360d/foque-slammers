@@ -1,9 +1,11 @@
 import { Engine, Loader, SolverStrategy } from "excalibur";
 import Play from "./scenes/SlamGame";
 
+export let game: Engine;
+
 export function excaliburMain() {
   // Create the game engine
-  const game = new Engine({
+  game = new Engine({
     physics: {
       solver: SolverStrategy.Realistic,
     },
@@ -20,7 +22,7 @@ export function excaliburMain() {
   // Start the game
   game.start(loader).then(() => {
     game.goToScene("play");
-    if (import.meta.env.EXCALIBUR_DEBUG) {
+    if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {
       game.showDebug(true);
     }
   });

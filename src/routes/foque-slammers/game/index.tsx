@@ -1,15 +1,27 @@
-import { createFileRoute, Navigate } from "@tanstack/solid-router";
-import { peerStore } from "../../../store/peer.store";
+import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createEffect } from "solid-js";
 import { excaliburMain } from "../../../game/main";
+import { peerStore } from "../../../store/peer.store";
 
 export const Route = createFileRoute("/foque-slammers/game/")({
-	component: RouteComponent,
+  component: RouteComponent,
 });
 
 function RouteComponent() {
-	if (!peerStore.connection) {
-		return <Navigate to="/foque-slammers" />;
-	}
-	excaliburMain();
-	return null;
+  const navigate = useNavigate();
+  createEffect(() => {
+    if (!peerStore.connection) {
+      if (import.meta.env.DEV) {
+        console.warn(`prevented navigation to index route due to dev mode, connection in peer store is ${peerStore.connection}`);
+        return;
+      }
+      navigate({
+        to: "/foque-slammers"
+      });
+      return;
+    }
+  })
+
+  excaliburMain();
+  return null;
 }
