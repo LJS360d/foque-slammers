@@ -9,7 +9,7 @@ import basicSsl from "@vitejs/plugin-basic-ssl";
 export default defineConfig((env) => ({
 	root: ".",
 	publicDir: "public",
-	base: env.dev ? "/" : "/foque-slammers/", // for github pages deploy
+	base: "/foque-slammers/", // for github pages deploy
 	plugins: [
 		TanStackRouterVite({ target: "solid", autoCodeSplitting: true }),
 		solidPlugin(),

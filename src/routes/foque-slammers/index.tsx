@@ -11,6 +11,7 @@ import {
 	setPeerStore,
 } from "../../store/peer.store";
 import { copyToClipboard } from "../../utils/native";
+import { createStore } from "solid-js/store";
 
 export const Route = createFileRoute("/foque-slammers/")({
 	component: App,
@@ -45,14 +46,14 @@ function App() {
 }
 
 function GameCodeSection() {
-	const [flags, setFlags] = createSignal({
-		showPeerId: false,
+	const [flags, setFlags] = createStore({
+		showPeerId: true,
 		peerIdHovered: false,
 		peerIdCopied: false,
 	});
 
 	const peerIdText = () => {
-		if (flags().showPeerId) {
+		if (flags.showPeerId) {
 			return peerStore.peer?.id ?? "Loading...";
 		}
 		return peerStore.peer ? `${"?".repeat(9)}` : "Loading...";
@@ -71,16 +72,13 @@ function GameCodeSection() {
 							class="relative btn btn-ghost px-0 ml-2 mb-2"
 							on:click={() => {
 								copyToClipboard(peerStore.peer?.id ?? "");
-								setFlags({ ...flags(), peerIdCopied: true });
-								setTimeout(
-									() => setFlags({ ...flags(), peerIdCopied: false }),
-									1500,
-								);
+								setFlags("peerIdCopied", true);
+								setTimeout(() => setFlags("peerIdCopied", false), 1500);
 							}}
 						>
 							<AiFillCopy size={32} />
 						</button>
-						{flags().peerIdCopied && (
+						{flags.peerIdCopied && (
 							<>
 								<div class="tooltip-arrow" />
 								<div class="tooltip-content">Copied!</div>
@@ -94,10 +92,10 @@ function GameCodeSection() {
 						tabIndex={-1}
 						class="btn btn-xs btn-primary"
 						on:click={() =>
-							setFlags({ ...flags(), showPeerId: !flags().showPeerId })
+							setFlags({ ...flags, showPeerId: !flags.showPeerId })
 						}
 					>
-						{flags().showPeerId ? (
+						{flags.showPeerId ? (
 							<>
 								<BiSolidHide />
 								Hide
