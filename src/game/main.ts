@@ -1,7 +1,16 @@
-import { Engine, Loader, SolverStrategy } from "excalibur";
+import { Engine, Loader, Resolution, SolverStrategy } from "excalibur";
 import Play from "./scenes/SlamGame";
 
 export let game: Engine;
+export function disposeGame() {
+  if (game) {
+    game.stop();
+    game.dispose();
+    game = null as any;
+  }
+}
+const gameHeight = window.innerHeight;
+const gameWidth = window.innerWidth;
 
 export function excaliburMain() {
   // Create the game engine
@@ -9,11 +18,14 @@ export function excaliburMain() {
     physics: {
       solver: SolverStrategy.Realistic,
     },
-    width: window.innerWidth,
-    height: window.innerHeight,
+    viewport: {
+      width: gameWidth,
+      height: gameHeight,
+    },
+    resolution: Resolution.Standard,
+    canvasElementId: "game",
   });
 
-  // Add the scene to the game
   game.add("play", new Play());
 
   // Create a basic loader (optional for now)

@@ -55,7 +55,7 @@ export class Node extends Actor {
   private effect?: Effect;
   private hasActiveEffect = false;
 
-  private static readonly RADIUS = 50;
+  public static readonly RADIUS = 50;
   private static readonly PLAYER_COLOR = Color.Blue;
   private static readonly OPPONENT_COLOR = Color.Red;
   private static readonly TEXT_COLOR = Color.White;
@@ -123,11 +123,10 @@ export class Node extends Actor {
     super.update(engine, delta);
 
     // Apply damping to the velocity
-    this.vel = this.vel.scale(0.98);
+    this.vel = this.vel.scale(0.94);
     this.angularVelocity = 0
-    // Optional: Stop the actor if the velocity becomes very small
-    if (this.vel.magnitude < 2) {
-      // Adjust the threshold as needed
+    // stop the actor if the velocity becomes very small
+    if (this.vel.magnitude < 10) {
       this.vel = Vector.Zero;
     }
   }

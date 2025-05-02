@@ -1,18 +1,26 @@
-import { Actor, Animation, CollisionType, Color, Engine, ImageSource, Scene, SpriteSheet, Vector, } from "excalibur";
+import { Actor, Animation, CollisionType, Color, DefaultLoader, Engine, ImageSource, Scene, SpriteSheet, Vector } from "excalibur";
 import { Arena } from "../entities/Arena";
 import { Node } from "../entities/Node";
 import { game } from "../main";
 
 export default class Play extends Scene {
+  static readonly Resources = {
+    CoinFlipSpriteSheet48: new ImageSource("src/assets/seal_coin_flip_ss_48.png"),
+  } as const;;
+
   private playerNodes: Node[] = [];
   private opponentNodes: Node[] = [];
   private allNodes: Node[] = [];
 
-  private readonly boardX = 20;
-  private readonly boardY = 20;
-  private readonly boardWidth = window.innerWidth - this.boardX * 2;
-  private readonly boardHeight = window.innerHeight - this.boardY * 2;
+  private readonly boardX = 125;
+  private readonly boardY = 125;
+  private readonly boardWidth = game.drawWidth - this.boardX * 2;
+  private readonly boardHeight = game.drawHeight - this.boardY * 2;
   private initialNodePositions: Map<Node, Vector> = new Map();
+
+  onPreLoad(loader: DefaultLoader): void {
+    loader.addResources(Object.values(Play.Resources));
+  }
 
   async onInitialize(engine: Engine) {
     super.onInitialize(engine);
@@ -68,11 +76,8 @@ export default class Play extends Scene {
     });
 
     // Coin sprite sheet (assuming you have a sprite sheet with coin flip frames)
-    const coinImage = new ImageSource("src/assets/seal_coin_flip_ss_48.png");
-    await coinImage.load();
-
     const coinSheet = SpriteSheet.fromImageSource({
-      image: coinImage,
+      image: Play.Resources.CoinFlipSpriteSheet48,
       grid: {
         rows: 1,
         columns: 48,

@@ -3,11 +3,12 @@ import { Node } from "../Node";
 
 export class BouncePillar extends Actor {
   public damage: number = 1;
-  constructor(x: number, y: number, radius = 40) {
+  public static readonly RADIUS = 40;
+  constructor(x: number, y: number, radius = BouncePillar.RADIUS) {
     super({
       name: 'bouncePillar',
       pos: new Vector(x, y),
-      collisionType: CollisionType.Passive,
+      collisionType: CollisionType.Fixed,
       color: Color.Yellow,
       collider: new CircleCollider({
         radius: radius
@@ -24,9 +25,9 @@ export class BouncePillar extends Actor {
   }
 
   onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
-      if (other.owner instanceof Node) {
-        other.owner.attack += this.damage;
-        other.owner.vel = other.owner.vel.scale(-1.2);
-      }
+    if (other.owner instanceof Node) {
+      other.owner.attack += this.damage;
+      other.owner.vel = other.owner.vel.scale(1.5);
+    }
   }
 }

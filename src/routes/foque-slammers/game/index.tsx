@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { createEffect } from "solid-js";
-import { excaliburMain } from "../../../game/main";
+import { disposeGame, excaliburMain, game } from "../../../game/main";
 import { peerStore } from "../../../store/peer.store";
 
 export const Route = createFileRoute("/foque-slammers/game/")({
@@ -21,7 +21,14 @@ function RouteComponent() {
       return;
     }
   })
-
-  excaliburMain();
-  return null;
+  createEffect(() => {
+    // for dev only, dispose the game when the HMR triggers
+    if (import.meta.env.DEV && game) {
+      disposeGame();
+    }
+    if (!game) {
+      excaliburMain();
+    }
+  });
+  return <canvas id="game" class="w-full h-full" />;
 }
