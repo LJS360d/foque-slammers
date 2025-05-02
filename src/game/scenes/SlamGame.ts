@@ -5,8 +5,8 @@ import { game } from "../main";
 
 export default class Play extends Scene {
   static readonly Resources = {
-    CoinFlipSpriteSheet48: new ImageSource("src/assets/seal_coin_flip_ss_48.png"),
-  } as const;;
+    CoinFlipSpriteSheet48: new ImageSource("/foque-slammers/assets/seal_coin_flip_ss_48.png"),
+  } as const;
 
   private playerNodes: Node[] = [];
   private opponentNodes: Node[] = [];
