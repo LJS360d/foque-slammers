@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { createEffect } from "solid-js";
+import { createEffect, onCleanup, onMount } from "solid-js";
 import { disposeGame, excaliburMain, game } from "../../../game/main";
 import { peerStore } from "../../../store/peer.store";
 
@@ -21,14 +21,16 @@ function RouteComponent() {
       return;
     }
   })
-  createEffect(() => {
-    // for dev only, dispose the game when the HMR triggers
-    if (import.meta.env.DEV && game) {
-      disposeGame();
-    }
-    if (!game) {
-      excaliburMain();
-    }
+
+  onMount(() => {
+    console.log("mounting game engine");
+    excaliburMain("game");
   });
+
+  onCleanup(() => {
+    console.log("cleaning up game engine");
+    disposeGame();
+  });
+
   return <canvas id="game" class="w-full h-full" />;
 }

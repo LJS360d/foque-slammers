@@ -1,5 +1,27 @@
-import { Actor, Vector, CollisionType, Color, CircleCollider, Circle, Collider, CollisionContact, Side } from "excalibur";
-import { Node } from "../Node";
+import { Actor, Circle, Collider, CollisionContact, CollisionType, Color, PolygonCollider, Side, Vector } from "excalibur";
+import { Floatie } from "../Floatie";
+
+/* function pointyTopHexagonPoints(w: number) {
+  return [
+    { x: w, y: 0 },
+    { x: w + w * 0.5, y: w / 4 },
+    { x: w + w * 0.5, y: w * (3 / 4) },
+    { x: w, y: w },
+    { x: w * 0.5, y: w * (3 / 4) },
+    { x: w * 0.5, y: w / 4 },
+  ];
+} */
+function flatTopHexagonPoints(width: number) {
+  return [
+    { x: width / 4, y: 0 },
+    { x: width * (3 / 4), y: 0 },
+    { x: width, y: width * 0.5 },
+    { x: width * (3 / 4), y: width },
+    { x: width / 4, y: width },
+    { x: 0, y: width * 0.5 },
+  ];
+}
+
 
 export class BouncePillar extends Actor {
   public damage: number = 1;
@@ -10,8 +32,10 @@ export class BouncePillar extends Actor {
       pos: new Vector(x, y),
       collisionType: CollisionType.Fixed,
       color: Color.Yellow,
-      collider: new CircleCollider({
-        radius: radius
+      collider: new PolygonCollider({
+        // hexagon
+        offset: new Vector(-radius, -radius),
+        points: flatTopHexagonPoints(radius * 2).map(p => new Vector(p.x, p.y)),
       })
     });
 
@@ -24,8 +48,8 @@ export class BouncePillar extends Actor {
     this.graphics.use(circleGraphics);
   }
 
-  onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
-    if (other.owner instanceof Node) {
+  onCollisionStart(_self: Collider, other: Collider, _side: Side, _contact: CollisionContact): void {
+    if (other.owner instanceof Floatie) {
       other.owner.attack += this.damage;
       other.owner.vel = other.owner.vel.scale(1.5);
     }

@@ -1,5 +1,5 @@
 import { Actor, Circle, CircleCollider, Collider, CollisionContact, CollisionType, Color, Side, Vector } from "excalibur";
-import { Node } from "../Node";
+import { Floatie } from "../Floatie";
 
 export class SpikePillar extends Actor {
   public damage: number = 3;
@@ -24,7 +24,7 @@ export class SpikePillar extends Actor {
   }
 
   onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
-    if (other.owner instanceof Node) {
+    if (other.owner instanceof Floatie) {
       other.owner.applyDamage(this.damage)
     }
   }

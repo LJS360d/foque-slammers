@@ -15,44 +15,47 @@ import {
   type PointerEvent,
   Ray,
   type Side,
+  Sprite,
   Text,
   Vector,
 } from "excalibur";
+import Play from "../scenes/SlamGame";
+import { peerStore } from "../../store/peer.store";
 
-export interface NodeOptions {
+export interface FloatieOptions {
   id: number;
-  owner: "player" | "opponent";
+  owner: string; // game code
   x: number;
   y: number;
   hp: number;
   attack: number;
-  effect?: Effect;
+  effect?: FloatieEffect;
 }
 
-interface Effect {
+interface FloatieEffect {
   name: string;
   duration: number;
 }
 
-export class Node extends Actor {
-  public owner: "player" | "opponent";
+export class Floatie extends Actor {
+  public owner: string;
   public hp: number;
   public maxHp: number;
   private _attack: number;
-  public startColor: Color;
+  public baseAttack: number;
+
   public isCharging = false;
   private startChargePosition: Vector = Vector.Zero;
   private currentChargePosition: Vector = Vector.Zero;
   private chargeAmount = 0;
   private chargeDirection: Vector = Vector.Zero;
-  private circleGraphic: Circle;
 
   private dragLine: Actor | null = null;
   private trajectoryLine: Actor | null = null;
 
   private initialPos: Vector = Vector.Zero;
   private labelGraphic: Text;
-  private effect?: Effect;
+  private effect?: FloatieEffect;
   private hasActiveEffect = false;
 
   public static readonly RADIUS = 50;
@@ -66,11 +69,11 @@ export class Node extends Actor {
     bold: true,
   });
 
-  constructor({ id, owner, x, y, hp, attack, effect }: NodeOptions) {
+  constructor({ id, owner, x, y, hp, attack, effect }: FloatieOptions) {
     super({
-      name: `${Node.name}-${id}`,
+      name: `${Floatie.name}-${id}`,
       pos: new Vector(x, y),
-      collider: new CircleCollider({ radius: Node.RADIUS }),
+      collider: new CircleCollider({ radius: Floatie.RADIUS }),
       collisionType: CollisionType.Active,
     });
     this.initialPos = new Vector(x, y);
@@ -78,28 +81,36 @@ export class Node extends Actor {
     this.hp = hp;
     this.maxHp = hp;
     this._attack = attack;
+    this.baseAttack = attack;
     this.effect = effect;
-
-    this.startColor =
-      this.owner === "player" ? Node.PLAYER_COLOR : Node.OPPONENT_COLOR;
-    this.circleGraphic = new Circle({
-      radius: Node.RADIUS,
-      color: this.startColor,
+    const isOwner = this.owner === peerStore.peer.id;
+    const floatieSprite = new Sprite({
+      image: isOwner
+        ? Play.Resources.FloatieBlue
+        : Play.Resources.FloatieRed,
+      width: 256,
+      height: 256,
+      flipHorizontal: !isOwner,
+      destSize: {
+        width: Floatie.RADIUS * 2.5,
+        height: Floatie.RADIUS * 2.5,
+      }
     });
+
     this.labelGraphic = new Text({
       text: this.labelText,
-      font: Node.FONT,
-      color: Node.TEXT_COLOR,
+      font: Floatie.FONT,
+      color: Floatie.TEXT_COLOR,
     });
     const group = new GraphicsGroup({
       members: [
         {
-          graphic: this.circleGraphic,
+          graphic: floatieSprite,
           offset: Vector.Zero,
         },
         {
           graphic: this.labelGraphic,
-          offset: new Vector(0, Node.RADIUS * 2),
+          offset: new Vector(0, Floatie.RADIUS * 2),
         },
       ],
     });
@@ -110,25 +121,30 @@ export class Node extends Actor {
     return `HP: ${this.hp}/${this.maxHp} ATK: ${this.attack}`;
   }
 
-  public set attack(value: number) {
-    this._attack = value;
+
+  public set attack(atk: number) {
+    this._attack = atk;
     this.updateLabel();
   }
 
   public get attack(): number {
-    return this._attack;
+    return this.baseAttack;
   }
 
   update(engine: Engine, delta: number) {
     super.update(engine, delta);
-
     // Apply damping to the velocity
     this.vel = this.vel.scale(0.94);
-    this.angularVelocity = 0
+    if (this.angularVelocity > 0) {
+      this.angularVelocity -= 0.2
+    } else {
+      this.angularVelocity = 0;
+    }
     // stop the actor if the velocity becomes very small
     if (this.vel.magnitude < 10) {
       this.vel = Vector.Zero;
     }
+
   }
 
   onInitialize(engine: Engine): void {
@@ -142,7 +158,7 @@ export class Node extends Actor {
     side: Side,
     contact: CollisionContact,
   ): void {
-    if (other.owner instanceof Node) {
+    if (other.owner instanceof Floatie) {
       if (this.vel.magnitude > 0.01) {
         if (other.owner.owner !== this.owner) {
           other.owner.applyDamage(this.attack);
@@ -299,32 +315,23 @@ export class Node extends Actor {
       this.reset(this.initialPos);
     } else {
       // TODO Hit animation
-      this.circleGraphic.color = Color.Yellow;
-      this.scene?.engine.clock.schedule(() => {
-        this.circleGraphic.color = this.startColor;
-      }, 100);
+
     }
   }
 
-  public applyEffect(effect: Effect): void {
+  public applyEffect(effect: FloatieEffect): void {
     this.hasActiveEffect = true;
 
     switch (effect.name) {
       case "mega":
         this.attack += 10;
         this.updateLabel();
-        this.circleGraphic.color = Color.Pink;
-        this.scene?.engine.clock.schedule(() => {
-          this.circleGraphic.color = this.startColor;
-        }, 100);
+        // TODO effect animation
         break;
       case "heal":
         this.hp = Math.min(this.hp + 10, this.maxHp);
         this.updateLabel();
-        this.circleGraphic.color = Color.Green;
-        this.scene?.engine.clock.schedule(() => {
-          this.circleGraphic.color = this.startColor;
-        }, 100);
+        // TODO effect animation
         break;
       default:
         break;
@@ -333,10 +340,11 @@ export class Node extends Actor {
 
   public reset(initialPosition: Vector): void {
     this.hp = this.maxHp;
+    this.angularVelocity = 0;
+    this.rotation = 0;
     this.vel = Vector.Zero;
     this.acc = Vector.Zero;
     this.pos = initialPosition;
-    this.circleGraphic.color = this.startColor;
     this.updateLabel();
   }
 

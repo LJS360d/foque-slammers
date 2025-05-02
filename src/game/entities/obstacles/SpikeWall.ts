@@ -1,5 +1,5 @@
 import { Actor, Collider, CollisionContact, CollisionType, Color, Rectangle, Side, Vector } from "excalibur";
-import { Node } from "../Node";
+import { Floatie } from "../Floatie";
 
 export class SpikeWall extends Actor {
   public static readonly WIDTH = 21;
@@ -23,7 +23,7 @@ export class SpikeWall extends Actor {
   }
 
   onCollisionStart(self: Collider, other: Collider, side: Side, contact: CollisionContact): void {
-    if (other.owner instanceof Node) {
+    if (other.owner instanceof Floatie) {
       other.owner.applyDamage(this.damage)
     }
   }

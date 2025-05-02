@@ -12,9 +12,9 @@ export function disposeGame() {
 const gameHeight = window.innerHeight;
 const gameWidth = window.innerWidth;
 
-export function excaliburMain() {
+export function excaliburMain(canvasElementId?: string) {
   // Create the game engine
-  game = new Engine({
+  game = new Engine<"play">({
     physics: {
       solver: SolverStrategy.Realistic,
     },
@@ -23,7 +23,7 @@ export function excaliburMain() {
       height: gameHeight,
     },
     resolution: Resolution.Standard,
-    canvasElementId: "game",
+    canvasElementId
   });
 
   game.add("play", new Play());
