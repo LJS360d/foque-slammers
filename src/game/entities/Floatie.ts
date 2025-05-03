@@ -22,8 +22,10 @@ import {
 import { peerStore } from "../../store/peer.store";
 import { reflectVector } from "../../utils/vector";
 import Play from "../scenes/SlamGame";
+import type { TurnManager } from "../scenes/TurnManager";
 
 export interface FloatieOptions {
+  turnManager: TurnManager;
   id: number;
   owner: string; // game code
   x: number;
@@ -75,13 +77,16 @@ export class Floatie extends Actor {
   private _previousPosition: Vector;
   private _previousRotation: number;
 
-  constructor({ id, owner, x, y, hp, attack, effect }: FloatieOptions) {
+  private turnManager: TurnManager
+
+  constructor({ id, owner, x, y, hp, attack, effect, turnManager }: FloatieOptions) {
     super({
       name: `${Floatie.name}-${id}`,
       pos: new Vector(x, y),
       collider: new CircleCollider({ radius: Floatie.RADIUS }),
       collisionType: CollisionType.Active,
     });
+    this.turnManager = turnManager;
     this.initialPos = new Vector(x, y);
     this._previousPosition = this.initialPos.clone();
     this._previousRotation = this.rotation;
@@ -208,6 +213,7 @@ export class Floatie extends Actor {
   }
 
   public onPointerDown = (event: PointerEvent) => {
+    if (this.owner !== peerStore.peer.id) return;
     this.isCharging = true;
     this.startChargePosition = this.pos.clone();
     this.startCharge(this.startChargePosition);
