@@ -20,17 +20,17 @@ export const Route = createFileRoute("/foque-slammers/")({
 function App() {
   return (
     <main
-      class="h-screen flex p-10 pl-20 space-x-8 bg-cover"
+      class="h-screen grid grid-cols-1 lg:grid-cols-3 p-10 pl-20 gap-6 bg-cover"
       style={{ "background-image": `url(${bg})` }}
     >
-      <section class="flex bg-base-200 flex-col w-3/4 gap-4 max-h-screen overflow-auto">
+      <section class="flex bg-base-200 flex-col gap-4 max-h-screen overflow-auto">
         <GameCodeSection />
         <QuickGameInviteSection />
       </section>
-      <section class="flex bg-base-200 flex-col w-2/4 items-center max-h-screen overflow-auto">
+      <section class="flex bg-base-200 flex-col items-center max-h-screen overflow-auto">
         <GameInvitationsSection />
       </section>
-      <section class="flex flex-col w-full space-y-8">
+      <section class="flex flex-col space-y-8">
         <div class="bg-base-300 flex flex-col w-full h-full justify-center items-center">
           Coming soon...
         </div>

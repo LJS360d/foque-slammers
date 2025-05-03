@@ -13,8 +13,7 @@ const gameHeight = window.innerHeight;
 const gameWidth = window.innerWidth;
 
 export function excaliburMain(canvasElementId?: string) {
-  // Create the game engine
-  game = new Engine<"play">({
+  game = new Engine({
     physics: {
       solver: SolverStrategy.Realistic,
     },
@@ -28,10 +27,8 @@ export function excaliburMain(canvasElementId?: string) {
 
   game.add("play", new Play());
 
-  // Create a basic loader (optional for now)
   const loader = new Loader();
 
-  // Start the game
   game.start(loader).then(() => {
     game.goToScene("play");
     if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {

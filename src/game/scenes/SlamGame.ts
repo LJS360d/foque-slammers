@@ -13,9 +13,9 @@ export default class Play extends Scene {
     FloatieRed: new ImageSource(`${ASSETS_DIR}/floatie-red-256.png`),
   } as const;
 
-  private playerNodes: Floatie[] = [];
-  private opponentNodes: Floatie[] = [];
-  private allNodes: Floatie[] = [];
+  private hostFloaties: Floatie[] = [];
+  private guestFloaties: Floatie[] = [];
+  private allFloaties: Floatie[] = [];
 
   private readonly boardX = 125;
   private readonly boardY = 125;
@@ -45,7 +45,6 @@ export default class Play extends Scene {
     super.onInitialize(engine);
     const arena = new Arena(this.boardX, this.boardY, this.boardWidth, this.boardHeight);
     this.add(arena);
-
     arena.playerPositions.forEach((pos, i) => {
       const node = new Floatie({
         id: i + 1,
@@ -59,7 +58,7 @@ export default class Play extends Scene {
           duration: 1
         }
       });
-      this.playerNodes.push(node);
+      this.hostFloaties.push(node);
     });
     arena.opponentPositions.forEach((pos, i) => {
       const node = new Floatie({
@@ -74,11 +73,11 @@ export default class Play extends Scene {
           duration: 0
         }
       });
-      this.opponentNodes.push(node);
+      this.guestFloaties.push(node);
     });
 
-    this.allNodes = [...this.playerNodes, ...this.opponentNodes];
-    this.allNodes.forEach(node => {
+    this.allFloaties = [...this.hostFloaties, ...this.guestFloaties];
+    this.allFloaties.forEach(node => {
       engine.add(node);
       this.initialNodePositions.set(node, node.pos.clone());
     });
@@ -137,16 +136,44 @@ export default class Play extends Scene {
           this.remove(backdrop);
         }, 5000); */
 
-
-    peerStore.connection?.on("data", (data) => this.gamePeerDataHandler(data as any));
+    if (peerStore.isHost) {
+      peerStore.connection?.on("data", (data) => this.hostPeerDataHandler(data as any));
+    } else {
+      peerStore.connection?.on("data", (data) => this.guestPeerDataHandler(data as any));
+    }
   }
 
-  private gamePeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
+  private hostPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
+    switch (msg) {
+      case "game:floatie-release-charge": {
+        // { id: string, vel: { x: number, y: number } }
+        const floatie = this.allFloaties.find(node => node.id === data.id);
+        if (!floatie) {
+          console.log("Could not find floatie with id", data.id);
+          break;
+        };
+        floatie.vel = new Vector(data.vel.x, data.vel.y);
+        break;
+      }
+
+      default:
+        break;
+    }
+  }
+
+  private guestPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
     switch (msg) {
       case "game:floatie-position": {
-        const node = this.allNodes.find(node => node.id === data.id);
-        if (node) {
-          node.pos = new Vector(data.pos.x, data.pos.y);
+        const floatie = this.allFloaties.find(node => node.id === data.id);
+        if (floatie) {
+          floatie.pos = new Vector(data.pos.x, data.pos.y);
+        }
+        break;
+      }
+      case "game:floatie-rotation": {
+        const floatie = this.allFloaties.find(node => node.id === data.id);
+        if (floatie) {
+          floatie.rotation = data.rotation;
         }
         break;
       }

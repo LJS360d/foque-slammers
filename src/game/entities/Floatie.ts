@@ -4,10 +4,10 @@ import {
   CircleCollider,
   type Collider,
   type CollisionContact,
-  CollisionGroup,
   CollisionType,
   Color,
   type Engine,
+  Entity,
   Font,
   FontUnit,
   GraphicsGroup,
@@ -17,10 +17,11 @@ import {
   type Side,
   Sprite,
   Text,
-  Vector,
+  Vector
 } from "excalibur";
-import Play from "../scenes/SlamGame";
 import { peerStore } from "../../store/peer.store";
+import { reflectVector } from "../../utils/vector";
+import Play from "../scenes/SlamGame";
 
 export interface FloatieOptions {
   id: number;
@@ -51,7 +52,9 @@ export class Floatie extends Actor {
   private chargeDirection: Vector = Vector.Zero;
 
   private dragLine: Actor | null = null;
-  private trajectoryLine: Actor | null = null;
+  private dragKnob: Actor | null = null;
+  private trajectoryPoints: Vector[] = [];
+  private trajectoryLines: Actor[] = [];
 
   private initialPos: Vector = Vector.Zero;
   private labelGraphic: Text;
@@ -62,12 +65,15 @@ export class Floatie extends Actor {
   private static readonly PLAYER_COLOR = Color.Blue;
   private static readonly OPPONENT_COLOR = Color.Red;
   private static readonly TEXT_COLOR = Color.White;
+  private static readonly DAMPEN_FACTOR = 0.94;
   private static readonly FONT = new Font({
     family: "sans-serif",
     size: 10,
     unit: FontUnit.Px,
     bold: true,
   });
+  private _previousPosition: Vector;
+  private _previousRotation: number;
 
   constructor({ id, owner, x, y, hp, attack, effect }: FloatieOptions) {
     super({
@@ -77,6 +83,8 @@ export class Floatie extends Actor {
       collisionType: CollisionType.Active,
     });
     this.initialPos = new Vector(x, y);
+    this._previousPosition = this.initialPos.clone();
+    this._previousRotation = this.rotation;
     this.owner = owner;
     this.hp = hp;
     this.maxHp = hp;
@@ -134,7 +142,7 @@ export class Floatie extends Actor {
   update(engine: Engine, delta: number) {
     super.update(engine, delta);
     // Apply damping to the velocity
-    this.vel = this.vel.scale(0.94);
+    this.vel = this.vel.scale(Floatie.DAMPEN_FACTOR);
     if (this.angularVelocity > 0) {
       this.angularVelocity -= 0.2
     } else {
@@ -145,6 +153,36 @@ export class Floatie extends Actor {
       this.vel = Vector.Zero;
     }
 
+    if (!this.pos.equals(this._previousPosition)) {
+      this.handlePositionChange();
+    }
+    if (this.rotation !== this._previousRotation) {
+      this.handleRotationChange();
+    }
+    // Update the previous position for the next frame
+    this._previousPosition = this.pos.clone();
+    this._previousRotation = Number(this.rotation);
+  }
+
+  private handlePositionChange() {
+    if (!peerStore.isHost) return;
+    peerStore.connection?.send({
+      msg: "game:floatie-position",
+      id: this.id,
+      pos: {
+        x: this.pos.x,
+        y: this.pos.y,
+      }
+    });
+  }
+
+  private handleRotationChange() {
+    if (!peerStore.isHost) return;
+    peerStore.connection?.send({
+      msg: "game:floatie-rotation",
+      id: this.id,
+      rotation: this.rotation,
+    });
   }
 
   onInitialize(engine: Engine): void {
@@ -189,108 +227,121 @@ export class Floatie extends Actor {
     this.updateTrajectoryProjection();
   };
 
-  // TODO make it work
   updateTrajectoryProjection() {
-    if (this.isCharging) {
-      if (!this.trajectoryLine) {
-        this.trajectoryLine = new Actor({
-          pos: Vector.Zero, // Position will be updated
-        });
-        const graphics = new GraphicsGroup({
-          members: [
-            {
-              graphic: new Line({
-                start: this.pos,
-                end: this.currentChargePosition,
-                color: Color.LightGray,
-                thickness: 2,
-              }),
-              offset: Vector.Zero,
-            },
-          ],
-        });
-        this.trajectoryLine.graphics.use(graphics);
-        this.scene?.add(this.trajectoryLine);
-      }
+    // Clear old trajectory lines and points
+    this.trajectoryLines.forEach(line => line.kill());
+    this.trajectoryLines = [];
+    this.trajectoryPoints = [];
 
-      const launchVelocity = this.currentChargePosition
-        .sub(this.startChargePosition)
-        .scale(-20);
-      const launchDirection = launchVelocity.normalize();
-      const ray = new Ray(this.pos.clone(), launchDirection);
-      const collisionResults =
-        this.scene?.physics.rayCast(ray, {
-          searchAllColliders: true,
-          collisionGroup: CollisionGroup.All,
-          collisionMask: CollisionGroup.All.mask,
-          maxDistance: Number.POSITIVE_INFINITY,
-        }) ?? [];
-      // remove first result as it is the collission with self
-      collisionResults.shift();
+    if (!this.isCharging) return;
+    const launchVelocity = this.currentChargePosition.sub(this.startChargePosition).scale(-10);
+    let lastCollisionPosition = this.startChargePosition.clone();
+    let lastCollisionDirection = launchVelocity.normalize();
+    let lastCollider: Entity = this;
+    this.trajectoryPoints.push(lastCollisionPosition);
 
-      const graphics = this.trajectoryLine.graphics.current as GraphicsGroup;
-      graphics.members = [
-        new Line({
-          start: this.startChargePosition,
-          end: this.pos,
-          color: Color.Red,
-          thickness: 2,
-        }),
-      ];
+    for (let i = 0; i < 2; i++) {
+      const ray = new Ray(lastCollisionPosition, lastCollisionDirection);
+      const hits = this.scene?.physics.rayCast(ray, {
+        maxDistance: launchVelocity.magnitude / 3.33,
+        filter: (hit) => hit.collider.owner !== lastCollider,
+      }) || [];
+      if (!hits.length) {
+        // compute the last position of the trajectory
+        lastCollisionPosition = lastCollisionPosition.add(launchVelocity).scale(Floatie.DAMPEN_FACTOR / 1.25);
+        this.trajectoryPoints.push(lastCollisionPosition);
+        break
+      };
+      const hit = hits[0];
+      lastCollisionPosition = hit.point;
+      lastCollider = hit.collider.owner;
+      lastCollisionDirection = reflectVector(hit.point, hit.normal).normalize();
 
-      for (let i = 0; i < collisionResults.length - 1; i++) {
-        const start = collisionResults[i].point;
-        const end = collisionResults[i + 1].point;
-        graphics.members.push(
-          new Line({
-            start,
-            end,
-            color: Color.LightGray,
-            thickness: 2,
-          }),
-        );
-      }
-    } else {
-      this.scene?.remove(this.trajectoryLine!);
-      this.trajectoryLine = null;
+      this.trajectoryPoints.push(lastCollisionPosition);
     }
+
+
+    for (let i = 0; i < this.trajectoryPoints.length - 1; i++) {
+      const start = this.trajectoryPoints[i];
+      const end = this.trajectoryPoints[i + 1];
+      const line = new Actor({
+        pos: Vector.Zero,
+        collisionType: CollisionType.PreventCollision,
+      });
+      line.graphics.use(
+        new Line({
+          start,
+          end,
+          color: Color.White,
+          thickness: 3,
+        }),
+      );
+      this.trajectoryLines.push(line);
+      this.scene?.add(line);
+    }
+
   }
 
   public updateDragVisualization() {
     if (this.isCharging) {
-      if (!this.dragLine) {
+      if (!this.dragLine || !this.dragKnob) {
         this.dragLine = new Actor({
+          pos: Vector.Zero, // Position will be updated
+        });
+        this.dragKnob = new Actor({
           pos: Vector.Zero, // Position will be updated
         });
         this.dragLine.graphics.use(
           new Line({
-            start: this.pos,
+            start: this.pos.clone(),
             end: this.currentChargePosition,
             color: Color.White,
             thickness: 3,
           }),
         );
+        this.dragKnob.graphics.use(
+          new Circle({
+            radius: this.chargeAmount,
+            color: Color.White,
+          }),
+        );
         this.scene?.add(this.dragLine);
+        this.scene?.add(this.dragKnob);
       } else {
         // Update the line
         (this.dragLine.graphics.current as any).end =
           this.currentChargePosition;
+        this.dragKnob!.pos = this.currentChargePosition;
+        (this.dragKnob.graphics.current as any).radius = this.chargeAmount * 0.5;
       }
     } else {
       this.scene?.remove(this.dragLine!);
+      this.scene?.remove(this.dragKnob!);
       this.dragLine = null;
+      this.dragKnob = null;
     }
   }
 
   public onPointerUp = (event: PointerEvent) => {
     if (!this.isCharging) return;
     this.isCharging = false;
-    const launchVelocity = this.releaseCharge(event.worldPos);
-    this.vel = launchVelocity;
     this.updateDragVisualization();
     this.updateTrajectoryProjection();
     this.scene?.input.pointers.primary.off("move", this.onPointerMove);
     this.scene?.input.pointers.primary.off("up", this.onPointerUp);
+    const launchVelocity = this.releaseCharge(event.worldPos);
+    if (peerStore.isHost) {
+      this.vel = launchVelocity;
+    } else {
+      peerStore.connection?.send({
+        msg: "game:floatie-release-charge",
+        id: this.id,
+        vel: {
+          x: launchVelocity.x,
+          y: launchVelocity.y,
+        }
+      });
+    }
   };
 
   public startCharge(startPosition: Vector): void {

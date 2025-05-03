@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { createEffect, onCleanup, onMount } from "solid-js";
-import { disposeGame, excaliburMain, game } from "../../../game/main";
+import { disposeGame, excaliburMain } from "../../../game/main";
 import { peerStore } from "../../../store/peer.store";
 
 export const Route = createFileRoute("/foque-slammers/game/")({
@@ -11,7 +11,7 @@ function RouteComponent() {
   const navigate = useNavigate();
   createEffect(() => {
     if (!peerStore.connection) {
-      if (import.meta.env.DEV) {
+      if (import.meta.env.ENABLE_SINGLEPLAYER) {
         console.warn(`prevented navigation to index route due to dev mode, connection in peer store is ${peerStore.connection}`);
         return;
       }
