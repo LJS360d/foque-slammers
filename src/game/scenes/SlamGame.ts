@@ -3,6 +3,7 @@ import { peerStore } from "../../store/peer.store";
 import { Arena } from "../entities/Arena";
 import { Floatie } from "../entities/Floatie";
 import { game } from "../main";
+import type { ScoreManager } from "./ScoreManager";
 import { TurnManager } from "./TurnManager";
 
 const ASSETS_DIR = "/foque-slammers/assets"
@@ -16,16 +17,15 @@ export default class Play extends Scene {
   private hostFloaties: Map<number, Floatie> = new Map();
   private guestFloaties: Map<number, Floatie> = new Map();
   private allFloaties: Map<number, Floatie> = new Map();
-  private movingFloaties: Map<number, Floatie> = new Map();
 
   private readonly boardX = 125;
   private readonly boardY = 125;
   private readonly boardWidth = game.drawWidth - this.boardX * 2;
   private readonly boardHeight = game.drawHeight - this.boardY * 2;
 
-  private playingOutTurn = false;
+  public playingOutTurn = false;
 
-  constructor(private turnManager: TurnManager) {
+  constructor(public turnManager: TurnManager, public scoreManager: ScoreManager) {
     super();
   }
 
@@ -40,6 +40,7 @@ export default class Play extends Scene {
     arena.playerPositions.forEach((pos, i) => {
       const node = new Floatie({
         turnManager: this.turnManager,
+        scoreManager: this.scoreManager,
         id: i + 1,
         owner: peerStore.isHost ? peerStore.peer.id : peerStore.connection?.peer ?? "",
         x: pos.x,
@@ -57,6 +58,7 @@ export default class Play extends Scene {
     arena.opponentPositions.forEach((pos, i) => {
       const node = new Floatie({
         turnManager: this.turnManager,
+        scoreManager: this.scoreManager,
         id: i + 4,
         owner: peerStore.isHost ? peerStore.connection?.peer ?? "" : peerStore.peer.id,
         x: pos.x,
@@ -92,24 +94,21 @@ export default class Play extends Scene {
     });
   }
 
-  update() {
+  update(engine: Engine, delta: number) {
+    super.update(engine, delta);
+    if (!peerStore.isHost) return;
     if (!this.playingOutTurn) return;
-    if (this.movingFloaties.size === 0) {
-      this.playingOutTurn = false;
-      this.turnManager.advanceTurn();
-      peerStore.connection?.send({
-        msg: "game:turn-advance",
-      });
-      return;
-    }
 
-    for (const [id, floatie] of this.allFloaties) {
-      if (floatie.vel.magnitude > 0.01) {
-        this.movingFloaties.set(id, floatie);
-        break;
+    for (const floatie of this.allFloaties.values()) {
+      if (floatie.vel.magnitude > 0.1) {
+        return;
       }
     }
-
+    this.playingOutTurn = false;
+    this.turnManager.advanceTurn();
+    peerStore.connection?.send({
+      msg: "game:turn-advance",
+    });
   }
 
   public playOutTurnAndAdvance() {
@@ -126,10 +125,14 @@ export default class Play extends Scene {
           break;
         };
         floatie.vel = new Vector(data.vel.x, data.vel.y);
+        this.playOutTurnAndAdvance();
         break;
       }
-      case "game:turn-advance": {
-        this.turnManager.advanceTurn();
+      case "game:floatie-aim": {
+        const floatie = this.allFloaties.get(data.id);
+        if (floatie) {
+          floatie.rotation = data.rotation;
+        }
         break;
       }
 
@@ -138,7 +141,7 @@ export default class Play extends Scene {
     }
   }
 
-  private guestPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
+  private async guestPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
     switch (msg) {
       case "game:floatie-position": {
         const floatie = this.allFloaties.get(data.id);
@@ -173,14 +176,33 @@ export default class Play extends Scene {
         floatie.playDefeatAnimation();
         break;
       }
-
+      case "game:score-update": {
+        const playerId = data.playerId;
+        const floatieId = data.floatieId;
+        const increment = data.increment;
+        this.scoreManager.addScore(playerId, floatieId, increment);
+        break;
+      }
+      case "game:end": {
+        const winner = data.winner;
+        this.playEndingAnimation(winner);
+        break;
+      }
+      case "rematch:accept": {
+        // TODO rematch
+        break;
+      }
+      case "rematch:decline": {
+        window.open("/foque-slammers/", "_self");
+        break;
+      }
       default:
         break;
     }
   }
 
 
-  private playCoinFlip(heads: boolean) {
+  private async playCoinFlip(heads: boolean) {
     const backdrop = new Actor({
       x: 0,
       y: 0,
@@ -251,10 +273,111 @@ export default class Play extends Scene {
     }, 2000);
 
     setTimeout(() => {
-      coinFlipActor.kill();
-      textActor.kill();
-      backdrop.kill();
+      this.remove(backdrop);
+      this.remove(coinFlipActor);
+      this.remove(textActor);
     }, 4000);
+
+  }
+
+  public async playEndingAnimation(winner: string) {
+    const iWon = winner === peerStore.peer.id;
+    const backdrop = new Actor({
+      x: 0,
+      y: 0,
+      width: game.canvasWidth,
+      height: game.canvasHeight,
+      color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
+      anchor: Vector.Zero,
+      collisionType: CollisionType.PreventCollision,
+    });
+
+    const textActor = new Actor({
+      x: backdrop.width / 2 - 128 - 256,
+      y: backdrop.height / 2 - 128,
+      width: 128,
+      height: 128,
+      anchor: Vector.Zero,
+      collisionType: CollisionType.PreventCollision,
+    });
+    const textGraphic = new Text({
+      text: iWon ? "You Win!" : "You Lose!",
+      font: new Font({
+        family: "sans-serif",
+        size: 24,
+        unit: FontUnit.Px,
+        bold: true,
+      }),
+      color: iWon ? Color.Green : Color.Red,
+    });
+    textActor.graphics.use(textGraphic);
+
+    this.add(backdrop);
+    this.add(textActor);
+
+    // todo analytics actors
+
+    const rematchButton = new Actor({
+      x: 0,
+      y: 0,
+      width: game.canvasWidth,
+      height: game.canvasHeight,
+      color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
+      anchor: Vector.Zero,
+      collisionType: CollisionType.PreventCollision,
+    });
+    rematchButton.graphics.use(
+      new Text({
+        text: "Rematch",
+        font: new Font({
+          family: "sans-serif",
+          size: 24,
+          unit: FontUnit.Px,
+          bold: true,
+        }),
+        color: Color.White,
+      }),
+    );
+    rematchButton.on("pointerdown", () => {
+      this.turnManager.advanceTurn();
+      peerStore.connection?.send({
+        msg: "rematch:accept",
+      });
+    });
+
+    const quitButton = new Actor({
+      x: 0,
+      y: 0,
+      width: game.canvasWidth,
+      height: game.canvasHeight,
+      color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
+      anchor: Vector.Zero,
+      collisionType: CollisionType.PreventCollision,
+    });
+    quitButton.graphics.use(
+      new Text({
+        text: "Quit",
+        font: new Font({
+          family: "sans-serif",
+          size: 24,
+          unit: FontUnit.Px,
+          bold: true,
+        }),
+        color: Color.White,
+      }),
+    );
+    quitButton.on("pointerdown", () => {
+      this.turnManager.advanceTurn();
+      peerStore.connection?.send({
+        msg: "rematch:decline",
+      });
+    });
+
+    setTimeout(() => {
+      this.add(rematchButton);
+      this.add(quitButton);
+    }, 1000);
+
 
   }
 }

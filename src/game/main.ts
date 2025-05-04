@@ -1,7 +1,8 @@
 import { Engine, Loader, Resolution, SolverStrategy } from "excalibur";
-import Play from "./scenes/SlamGame";
 import { peerStore } from "../store/peer.store";
+import Play from "./scenes/SlamGame";
 import { TurnManager } from "./scenes/TurnManager";
+import { ScoreManager } from "./scenes/ScoreManager";
 
 export let game: Engine;
 export function disposeGame() {
@@ -14,7 +15,7 @@ export function disposeGame() {
 const gameHeight = window.innerHeight;
 const gameWidth = window.innerWidth;
 
-export function excaliburMain(canvasElementId?: string) {
+export async function excaliburMain(canvasElementId?: string) {
   game = new Engine({
     physics: {
       solver: SolverStrategy.Realistic,
@@ -30,24 +31,28 @@ export function excaliburMain(canvasElementId?: string) {
   if (!opponent) {
     console.warn("player 2 initialized as empty due to connection not being established");
   }
+  const playerIds = [peerStore.peer.id, opponent];
   const turnManager = new TurnManager({
-    players: [peerStore.peer.id, opponent],
+    players: playerIds,
     randomInitialHolder: true,
-  })
-  game.add("play", new Play(turnManager));
+  });
+  const scoreManager = new ScoreManager(playerIds);
+  game.add("play", new Play(turnManager, scoreManager));
   const loader = new Loader();
-  game.start(loader).then(() => {
-    if (!peerStore.isHost) {
+  await game.start(loader)
+  if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {
+    game.showDebug(true);
+  }
+
+  if (!peerStore.isHost) {
+    game.goToScene("play");
+    return;
+  }
+  peerStore.connection?.once("data", (data) => {
+    if ((data as any).msg === "game:ready") {
       game.goToScene("play");
-    } else {
-      peerStore.connection?.once("data", (data) => {
-        if ((data as any).msg === "game:ready") {
-          game.goToScene("play");
-        }
-      });
-    }
-    if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {
-      game.showDebug(true);
     }
   });
+
+
 }

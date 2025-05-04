@@ -34,7 +34,9 @@ peerStore.peer.on("connection", managePeerDataConnection);
 
 export function managePeerDataConnection(connection: DataConnection) {
   connection.on("data", (data) => {
-    console.log("data:", data);
+    if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {
+      console.log("data:", data);
+    }
     peerDataHandler(data as any);
   });
 

@@ -1,3 +1,4 @@
+import { createSignal } from "solid-js";
 import { peerStore } from "../../store/peer.store";
 
 export interface TurnManagerOptions {
@@ -6,11 +7,14 @@ export interface TurnManagerOptions {
   randomInitialHolder?: boolean;
 }
 
+export const [turnsSignal, setTurnSignal] = createSignal(0);
+
 export class TurnManager {
   public turns = 0;
   public players: string[];
   private turnHolder: typeof this.players[number];
   private turnHolderIndex: number;
+
 
   constructor({ players, randomInitialHolder = false, initialHolder = 0 }: TurnManagerOptions) {
     this.players = players;
@@ -47,6 +51,7 @@ export class TurnManager {
     this.turnHolder = this.nextPlayer;
     this.turnHolderIndex = this.nextPlayerIndex;
     this.turns++;
+    setTurnSignal(this.turns);
   }
 
   public get isMyTurn(): boolean {

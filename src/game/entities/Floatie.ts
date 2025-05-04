@@ -23,9 +23,11 @@ import { peerStore } from "../../store/peer.store";
 import { reflectVector } from "../../utils/vector";
 import Play from "../scenes/SlamGame";
 import type { TurnManager } from "../scenes/TurnManager";
+import type { ScoreManager } from "../scenes/ScoreManager";
 
 export interface FloatieOptions {
   turnManager: TurnManager;
+  scoreManager: ScoreManager;
   id: number;
   owner: string; // game code
   x: number;
@@ -77,8 +79,9 @@ export class Floatie extends Actor {
   private _previousRotation: number;
 
   private turnManager: TurnManager
+  private scoreManager: ScoreManager;
 
-  constructor({ id, owner, x, y, hp, attack, effect, turnManager, flipHorizontal }: FloatieOptions) {
+  constructor({ id, owner, x, y, hp, attack, effect, flipHorizontal, turnManager, scoreManager }: FloatieOptions) {
     super({
       name: `${Floatie.name}-${id}`,
       pos: new Vector(x, y),
@@ -86,6 +89,7 @@ export class Floatie extends Actor {
       collisionType: CollisionType.Active,
     });
     this.turnManager = turnManager;
+    this.scoreManager = scoreManager;
     this.initialPos = new Vector(x, y);
     this._previousPosition = this.initialPos.clone();
     this._previousRotation = this.rotation;
@@ -212,7 +216,7 @@ export class Floatie extends Actor {
   }
 
   public onPointerDown = (_event: PointerEvent) => {
-    if (this.owner !== peerStore.peer.id || !this.turnManager.isMyTurn) return;
+    if (this.owner !== peerStore.peer.id || !this.turnManager.isMyTurn || (this.scene as Play).playingOutTurn) return;
     this.isCharging = true;
     this.startChargePosition = this.pos.clone();
     this.startCharge(this.startChargePosition);
@@ -318,6 +322,16 @@ export class Floatie extends Actor {
           this.currentChargePosition;
         this.dragKnob!.pos = this.currentChargePosition;
         (this.dragKnob.graphics.current as any).radius = this.chargeAmount * 0.5;
+
+        const dragDirection = this.currentChargePosition.sub(this.startChargePosition).normalize();
+        this.rotation = dragDirection.toAngle();
+        if (!peerStore.isHost) {
+          peerStore.connection?.send({
+            msg: "game:floatie-aim",
+            id: this.id,
+            rotation: this.rotation,
+          });
+        }
       }
     } else {
       this.scene?.remove(this.dragLine!);
@@ -337,6 +351,7 @@ export class Floatie extends Actor {
     const launchVelocity = this.releaseCharge(event.worldPos);
     if (peerStore.isHost) {
       this.vel = launchVelocity;
+      (this.scene as Play).playOutTurnAndAdvance();
     } else {
       peerStore.connection?.send({
         msg: "game:floatie-release-charge",
@@ -347,7 +362,6 @@ export class Floatie extends Actor {
         }
       });
     }
-    (this.scene as Play).playOutTurnAndAdvance();
   };
 
   public startCharge(startPosition: Vector): void {
@@ -375,7 +389,25 @@ export class Floatie extends Actor {
         id: this.id,
       });
       this.playDefeatAnimation().then(() => {
+        const opponentId = peerStore.connection?.peer ?? "";
+        // const prevScore = this.scoreManager.getPlayerScore(opponentId)
+        this.scoreManager.addScore(opponentId, this)
         this.reset(this.initialPos);
+        peerStore.connection?.send({
+          msg: "game:score-update",
+          playerId: opponentId,
+          floatieId: this.id,
+          increment: 1,
+        });
+        // TODO play score update animation
+        const winner = this.scoreManager.getWinner();
+        if (!winner) return;
+        // TODO play victory/defeat animation
+        peerStore.connection?.send({
+          msg: "game:end",
+          winner: winner,
+        });
+        (this.scene as Play).playEndingAnimation(winner);
       })
     } else {
       // hit animation
