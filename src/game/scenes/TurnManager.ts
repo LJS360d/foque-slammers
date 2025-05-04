@@ -1,3 +1,5 @@
+import { peerStore } from "../../store/peer.store";
+
 export interface TurnManagerOptions {
   players: string[];
   initialHolder?: number;
@@ -20,6 +22,11 @@ export class TurnManager {
     return Math.floor(Math.random() * this.players.length);
   }
 
+  public set currentPlayer(player: string) {
+    this.turnHolder = player;
+    this.turnHolderIndex = this.players.indexOf(player);
+  }
+
   public get currentPlayer(): string {
     return this.turnHolder;
   }
@@ -40,6 +47,10 @@ export class TurnManager {
     this.turnHolder = this.nextPlayer;
     this.turnHolderIndex = this.nextPlayerIndex;
     this.turns++;
+  }
+
+  public get isMyTurn(): boolean {
+    return this.turnHolder === peerStore.peer.id;
   }
 
 }

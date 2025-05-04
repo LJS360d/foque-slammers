@@ -33,6 +33,7 @@ export interface FloatieOptions {
   hp: number;
   attack: number;
   effect?: FloatieEffect;
+  flipHorizontal?: boolean;
 }
 
 interface FloatieEffect {
@@ -64,8 +65,6 @@ export class Floatie extends Actor {
   private hasActiveEffect = false;
 
   public static readonly RADIUS = 50;
-  private static readonly PLAYER_COLOR = Color.Blue;
-  private static readonly OPPONENT_COLOR = Color.Red;
   private static readonly TEXT_COLOR = Color.White;
   private static readonly DAMPEN_FACTOR = 0.94;
   private static readonly FONT = new Font({
@@ -79,7 +78,7 @@ export class Floatie extends Actor {
 
   private turnManager: TurnManager
 
-  constructor({ id, owner, x, y, hp, attack, effect, turnManager }: FloatieOptions) {
+  constructor({ id, owner, x, y, hp, attack, effect, turnManager, flipHorizontal }: FloatieOptions) {
     super({
       name: `${Floatie.name}-${id}`,
       pos: new Vector(x, y),
@@ -103,7 +102,7 @@ export class Floatie extends Actor {
         : Play.Resources.FloatieRed,
       width: 256,
       height: 256,
-      flipHorizontal: !isOwner,
+      flipHorizontal,
       destSize: {
         width: Floatie.RADIUS * 2.5,
         height: Floatie.RADIUS * 2.5,
@@ -158,11 +157,13 @@ export class Floatie extends Actor {
       this.vel = Vector.Zero;
     }
 
-    if (!this.pos.equals(this._previousPosition)) {
-      this.handlePositionChange();
-    }
-    if (this.rotation !== this._previousRotation) {
-      this.handleRotationChange();
+    if (peerStore.isHost) {
+      if (!this.pos.equals(this._previousPosition)) {
+        this.handlePositionChange();
+      }
+      if (this.rotation !== this._previousRotation) {
+        this.handleRotationChange();
+      }
     }
     // Update the previous position for the next frame
     this._previousPosition = this.pos.clone();
@@ -170,7 +171,6 @@ export class Floatie extends Actor {
   }
 
   private handlePositionChange() {
-    if (!peerStore.isHost) return;
     peerStore.connection?.send({
       msg: "game:floatie-position",
       id: this.id,
@@ -182,7 +182,6 @@ export class Floatie extends Actor {
   }
 
   private handleRotationChange() {
-    if (!peerStore.isHost) return;
     peerStore.connection?.send({
       msg: "game:floatie-rotation",
       id: this.id,
@@ -213,7 +212,7 @@ export class Floatie extends Actor {
   }
 
   public onPointerDown = (event: PointerEvent) => {
-    if (this.owner !== peerStore.peer.id) return;
+    if (this.owner !== peerStore.peer.id || !this.turnManager.isMyTurn) return;
     this.isCharging = true;
     this.startChargePosition = this.pos.clone();
     this.startCharge(this.startChargePosition);
@@ -233,7 +232,7 @@ export class Floatie extends Actor {
     this.updateTrajectoryProjection();
   };
 
-  updateTrajectoryProjection() {
+  public updateTrajectoryProjection() {
     // Clear old trajectory lines and points
     this.trajectoryLines.forEach(line => line.kill());
     this.trajectoryLines = [];
@@ -348,6 +347,7 @@ export class Floatie extends Actor {
         }
       });
     }
+    (this.scene as Play).playOutTurnAndAdvance();
   };
 
   public startCharge(startPosition: Vector): void {

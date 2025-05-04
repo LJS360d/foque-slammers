@@ -1,4 +1,4 @@
-import { Actor, Animation, CollisionType, Color, DefaultLoader, Engine, ImageSource, Scene, SpriteSheet, Vector } from "excalibur";
+import { Actor, Animation, CollisionType, Color, DefaultLoader, Engine, Font, FontUnit, ImageSource, Scene, SpriteSheet, Text, Vector } from "excalibur";
 import { peerStore } from "../../store/peer.store";
 import { Arena } from "../entities/Arena";
 import { Floatie } from "../entities/Floatie";
@@ -68,6 +68,7 @@ export default class Play extends Scene {
         owner: peerStore.isHost ? peerStore.connection?.peer ?? "" : peerStore.peer.id,
         x: pos.x,
         y: pos.y,
+        flipHorizontal: true,
         hp: 100,
         attack: 20,
         effect: {
@@ -93,7 +94,23 @@ export default class Play extends Scene {
       msg: "game:coin-flip",
       firstToMove: this.turnManager.currentPlayer
     });
+  }
 
+  public playOutTurnAndAdvance() {
+    /*  let floatiesMoving = true;
+     do {
+       for (const floatie of this.allFloaties.values()) {
+         if (floatie.vel.magnitude > 0.01) {
+           floatiesMoving = true;
+           break;
+         }
+         floatiesMoving = false;
+       }
+     } while (floatiesMoving); */
+    this.turnManager.advanceTurn();
+    peerStore.connection?.send({
+      msg: "game:turn-advance",
+    });
   }
 
   private hostPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
@@ -102,10 +119,14 @@ export default class Play extends Scene {
         // { id: string, vel: { x: number, y: number } }
         const floatie = this.allFloaties.get(data.id);
         if (!floatie) {
-          console.log("Could not find floatie with id", data.id);
+          console.log(`Could not find floatie with id ${data.id} in ${this.allFloaties.keys()}`);
           break;
         };
         floatie.vel = new Vector(data.vel.x, data.vel.y);
+        break;
+      }
+      case "game:turn-advance": {
+        this.turnManager.advanceTurn();
         break;
       }
 
@@ -132,7 +153,12 @@ export default class Play extends Scene {
       }
       case "game:coin-flip": {
         const heads = data.firstToMove === peerStore.peer.id;
+        this.turnManager.currentPlayer = data.firstToMove;
         this.playCoinFlip(heads);
+        break;
+      }
+      case "game:turn-advance": {
+        this.turnManager.advanceTurn();
         break;
       }
 
@@ -183,19 +209,41 @@ export default class Play extends Scene {
     });
     coinFlipActor.graphics.use(coinAnim);
 
+    const textActor = new Actor({
+      x: this.boardX + this.boardWidth / 2 - 32,
+      y: this.boardY + this.boardHeight / 2 + 64,
+      width: 128,
+      height: 128,
+      anchor: Vector.Zero,
+      collisionType: CollisionType.PreventCollision,
+    });
+    const textGraphic = new Text({
+      text: heads ? "You Start!" : "Opponent Starts!",
+
+      font: new Font({
+        family: "sans-serif",
+        size: 10,
+        unit: FontUnit.Px,
+        bold: true,
+      }),
+      color: Color.White,
+    });
+    textActor.graphics.use(textGraphic);
+
     coinAnim.goToFrame(heads ? 23 : 0);
     this.add(backdrop);
     this.add(coinFlipActor);
     setTimeout(() => {
       coinAnim.goToFrame(heads ? 0 : 23);
       coinAnim.pause();
-      // TODO show text
+      this.add(textActor);
     }, 2000);
 
     setTimeout(() => {
-      this.remove(coinFlipActor);
-      this.remove(backdrop);
-    }, 5000);
+      coinFlipActor.kill();
+      textActor.kill();
+      backdrop.kill();
+    }, 4000);
 
   }
 }
