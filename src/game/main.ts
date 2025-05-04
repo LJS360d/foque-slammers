@@ -1,6 +1,7 @@
 import { Engine, Loader, Resolution, SolverStrategy } from "excalibur";
 import Play from "./scenes/SlamGame";
 import { peerStore } from "../store/peer.store";
+import { TurnManager } from "./scenes/TurnManager";
 
 export let game: Engine;
 export function disposeGame() {
@@ -25,8 +26,15 @@ export function excaliburMain(canvasElementId?: string) {
     resolution: Resolution.Standard,
     canvasElementId
   });
-
-  game.add("play", new Play());
+  const opponent = peerStore.connection?.peer ?? "";
+  if (!opponent) {
+    console.warn("player 2 initialized as empty due to connection not being established");
+  }
+  const turnManager = new TurnManager({
+    players: [peerStore.peer.id, opponent],
+    randomInitialHolder: true,
+  })
+  game.add("play", new Play(turnManager));
   const loader = new Loader();
   game.start(loader).then(() => {
     if (!peerStore.isHost) {

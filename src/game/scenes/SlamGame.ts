@@ -23,19 +23,10 @@ export default class Play extends Scene {
   private readonly boardWidth = game.drawWidth - this.boardX * 2;
   private readonly boardHeight = game.drawHeight - this.boardY * 2;
 
-  private turnManager: TurnManager;
   private playingOutTurn = false;
 
-  constructor() {
+  constructor(private turnManager: TurnManager) {
     super();
-    const opponent = peerStore.connection?.peer ?? "";
-    if (!opponent) {
-      console.warn("player 2 initialized as empty due to connection not being established");
-    }
-    this.turnManager = new TurnManager({
-      players: [peerStore.peer.id, opponent],
-      randomInitialHolder: true,
-    });
   }
 
   onPreLoad(loader: DefaultLoader): void {
