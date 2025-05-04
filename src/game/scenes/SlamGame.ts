@@ -84,6 +84,9 @@ export default class Play extends Scene {
 
     if (!peerStore.isHost) {
       peerStore.connection?.on("data", (data) => this.guestPeerDataHandler(data as any));
+      peerStore.connection?.send({
+        msg: "game:ready",
+      });
       return;
     }
     peerStore.connection?.on("data", (data) => this.hostPeerDataHandler(data as any));
@@ -152,8 +155,6 @@ export default class Play extends Scene {
         break;
       }
       case "game:coin-flip": {
-        console.log("coin flip received");
-
         const heads = data.firstToMove === peerStore.peer.id;
         this.turnManager.currentPlayer = data.firstToMove;
         this.playCoinFlip(heads);

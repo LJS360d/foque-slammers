@@ -1,5 +1,6 @@
 import { Engine, Loader, Resolution, SolverStrategy } from "excalibur";
 import Play from "./scenes/SlamGame";
+import { peerStore } from "../store/peer.store";
 
 export let game: Engine;
 export function disposeGame() {
@@ -26,11 +27,17 @@ export function excaliburMain(canvasElementId?: string) {
   });
 
   game.add("play", new Play());
-
   const loader = new Loader();
-
   game.start(loader).then(() => {
-    game.goToScene("play");
+    if (!peerStore.isHost) {
+      game.goToScene("play");
+    } else {
+      peerStore.connection?.once("data", (data) => {
+        if ((data as any).msg === "game:ready") {
+          game.goToScene("play");
+        }
+      });
+    }
     if (Number(import.meta.env.VITE_EXCALIBUR_DEBUG)) {
       game.showDebug(true);
     }
