@@ -8,7 +8,6 @@ import {
   Color,
   type Engine,
   Entity,
-  Follow,
   Font,
   FontUnit,
   GraphicsGroup,
@@ -203,9 +202,9 @@ export class Floatie extends Actor {
   ): void {
     if (other.owner instanceof Floatie) {
       if (this.vel.magnitude > 0.01) {
-        if (other.owner.owner !== this.owner) {
+        if (other.owner.owner !== this.owner && !this.turnManager.isMyTurn) {
           other.owner.applyDamage(this.attack);
-        } else if (this.effect) {
+        } else if (this.effect && this.turnManager.isMyTurn) {
           other.owner.applyEffect(this.effect);
         }
       }

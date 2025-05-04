@@ -16,6 +16,7 @@ export default class Play extends Scene {
   private hostFloaties: Map<number, Floatie> = new Map();
   private guestFloaties: Map<number, Floatie> = new Map();
   private allFloaties: Map<number, Floatie> = new Map();
+  private movingFloaties: Map<number, Floatie> = new Map();
 
   private readonly boardX = 125;
   private readonly boardY = 125;
@@ -23,6 +24,7 @@ export default class Play extends Scene {
   private readonly boardHeight = game.drawHeight - this.boardY * 2;
 
   private turnManager: TurnManager;
+  private playingOutTurn = false;
 
   constructor() {
     super();
@@ -99,21 +101,28 @@ export default class Play extends Scene {
     });
   }
 
+  update() {
+    if (!this.playingOutTurn) return;
+    if (this.movingFloaties.size === 0) {
+      this.playingOutTurn = false;
+      this.turnManager.advanceTurn();
+      peerStore.connection?.send({
+        msg: "game:turn-advance",
+      });
+      return;
+    }
+
+    for (const [id, floatie] of this.allFloaties) {
+      if (floatie.vel.magnitude > 0.01) {
+        this.movingFloaties.set(id, floatie);
+        break;
+      }
+    }
+
+  }
+
   public playOutTurnAndAdvance() {
-    /*  let floatiesMoving = true;
-     do {
-       for (const floatie of this.allFloaties.values()) {
-         if (floatie.vel.magnitude > 0.01) {
-           floatiesMoving = true;
-           break;
-         }
-         floatiesMoving = false;
-       }
-     } while (floatiesMoving); */
-    this.turnManager.advanceTurn();
-    peerStore.connection?.send({
-      msg: "game:turn-advance",
-    });
+    this.playingOutTurn = true;
   }
 
   private hostPeerDataHandler({ msg, ...data }: { msg: string;[x: string]: any }) {
