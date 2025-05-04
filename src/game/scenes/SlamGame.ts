@@ -152,6 +152,8 @@ export default class Play extends Scene {
         break;
       }
       case "game:coin-flip": {
+        console.log("coin flip received");
+
         const heads = data.firstToMove === peerStore.peer.id;
         this.turnManager.currentPlayer = data.firstToMove;
         this.playCoinFlip(heads);
@@ -210,8 +212,8 @@ export default class Play extends Scene {
     coinFlipActor.graphics.use(coinAnim);
 
     const textActor = new Actor({
-      x: this.boardX + this.boardWidth / 2 - 32,
-      y: this.boardY + this.boardHeight / 2 + 64,
+      x: backdrop.width / 2 - 128 - 256,
+      y: backdrop.height / 2 - 128,
       width: 128,
       height: 128,
       anchor: Vector.Zero,
@@ -219,10 +221,9 @@ export default class Play extends Scene {
     });
     const textGraphic = new Text({
       text: heads ? "You Start!" : "Opponent Starts!",
-
       font: new Font({
         family: "sans-serif",
-        size: 10,
+        size: 24,
         unit: FontUnit.Px,
         bold: true,
       }),

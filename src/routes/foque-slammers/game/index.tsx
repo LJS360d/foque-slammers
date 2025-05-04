@@ -11,7 +11,7 @@ function RouteComponent() {
   const navigate = useNavigate();
   createEffect(() => {
     if (!peerStore.connection) {
-      if (import.meta.env.VITE_ENABLE_SINGLEPLAYER) {
+      if (Number(import.meta.env.VITE_ENABLE_SINGLEPLAYER)) {
         console.warn(`prevented navigation to index route due to dev mode, connection in peer store is ${peerStore.connection}`);
         return;
       }
