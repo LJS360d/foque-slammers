@@ -8,6 +8,7 @@ import {
   Color,
   type Engine,
   Entity,
+  Follow,
   Font,
   FontUnit,
   GraphicsGroup,
@@ -189,16 +190,16 @@ export class Floatie extends Actor {
     });
   }
 
-  onInitialize(engine: Engine): void {
+  onInitialize(_engine: Engine): void {
     this.on("pointerdown", this.onPointerDown);
     this.pointer.useColliderShape = true;
   }
 
   onCollisionStart(
-    self: Collider,
+    _self: Collider,
     other: Collider,
-    side: Side,
-    contact: CollisionContact,
+    _side: Side,
+    _contact: CollisionContact,
   ): void {
     if (other.owner instanceof Floatie) {
       if (this.vel.magnitude > 0.01) {
@@ -211,7 +212,7 @@ export class Floatie extends Actor {
     }
   }
 
-  public onPointerDown = (event: PointerEvent) => {
+  public onPointerDown = (_event: PointerEvent) => {
     if (this.owner !== peerStore.peer.id || !this.turnManager.isMyTurn) return;
     this.isCharging = true;
     this.startChargePosition = this.pos.clone();
@@ -368,12 +369,35 @@ export class Floatie extends Actor {
     this.updateLabel();
     if (this.hp <= 0) {
       this.hp = 0;
-      // TODO death animation
-      this.reset(this.initialPos);
+      // death animation
+      this.vel = Vector.Zero;
+      peerStore.connection?.send({
+        msg: "game:floatie-defeat",
+        id: this.id,
+      });
+      this.playDefeatAnimation().then(() => {
+        this.reset(this.initialPos);
+      })
     } else {
-      // TODO Hit animation
-
+      // hit animation
     }
+  }
+
+  public async playDefeatAnimation() {
+    return new Promise<void>((res) => {
+      this.vel = Vector.Zero;
+      this.angularVelocity = 30;
+      const { x, y, zoom } = this.scene!.camera
+      this.scene?.camera.strategy.radiusAroundActor(this, 150);
+
+      setTimeout(() => {
+        this.scene!.camera.clearAllStrategies();
+        this.scene!.camera.x = x;
+        this.scene!.camera.y = y;
+        this.scene!.camera.zoom = zoom;
+        res();
+      }, 1000);
+    });
   }
 
   public applyEffect(effect: FloatieEffect): void {

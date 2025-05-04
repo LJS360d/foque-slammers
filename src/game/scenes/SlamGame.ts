@@ -164,6 +164,15 @@ export default class Play extends Scene {
         this.turnManager.advanceTurn();
         break;
       }
+      case "game:floatie-defeat": {
+        const floatie = this.allFloaties.get(data.id);
+        if (!floatie) {
+          console.log(`Could not find floatie with id ${data.id} in ${this.allFloaties.keys()}`);
+          break;
+        }
+        floatie.playDefeatAnimation();
+        break;
+      }
 
       default:
         break;
