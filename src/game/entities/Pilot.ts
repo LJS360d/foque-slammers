@@ -1,16 +1,39 @@
-import type { TurnManager } from "../scenes/TurnManager";
+import type { ImageSource } from "excalibur";
+import Play from "../scenes/SlamGame";
 
-export interface PilotOptions {
-  turnManager: TurnManager;
-  hp: number;
-  attack: number;
-  effect?: PilotEffect;
-  flipHorizontal?: boolean;
+enum PilotTypesEnum {
+  Basic,
+  Freezing,
+  Heal,
+  Mega,
+  Spiky,
+  Ghost,
+  Zombie,
+  Angy,
+  Homing,
 }
 
-interface PilotEffect {
-  name: string;
-  duration: number;
+export type PilotType = keyof typeof PilotTypesEnum;
+interface PilotAttributes {
+  hp: number;
+  attack: number;
+  size?: number;
+}
+
+export const PilotTypeAttributesMap = new Map<PilotType, PilotAttributes>([
+  ["Basic", { hp: 75, attack: 15 }],
+  ["Freezing", { hp: 75, attack: 15 }],
+  ["Heal", { hp: 75, attack: 15 }],
+  ["Mega", { hp: 75, attack: 15 }],
+  ["Spiky", { hp: 75, attack: 15 }],
+  ["Ghost", { hp: 75, attack: 15 }],
+  ["Zombie", { hp: 75, attack: 15 }],
+  ["Angy", { hp: 75, attack: 15 }],
+  ["Homing", { hp: 75, attack: 15 }],
+]);
+
+export interface PilotOptions {
+  type: PilotType;
 }
 
 export class Pilot {
@@ -20,16 +43,20 @@ export class Pilot {
   public baseAttack: number;
 
   public isCharging = false;
+  public imageSource: ImageSource;
 
-  private effect?: PilotEffect;
+  public type: PilotType;
   private hasActiveEffect = false;
 
-  constructor({ hp, attack, effect, flipHorizontal }: PilotOptions) {
-    this.hp = hp;
-    this.maxHp = hp;
-    this._attack = attack;
-    this.baseAttack = attack;
-    this.effect = effect;
+  constructor({ type }: PilotOptions) {
+    this.type = type || "Basic";
+    const attr = PilotTypeAttributesMap.get(this.type)!;
+    this.hp = attr.hp;
+    this.maxHp = attr.hp;
+    this._attack = attr.attack;
+    this.baseAttack = attr.attack;
+    const resourceKey = `Pilot${this.type}` as keyof typeof Play.Resources;
+    this.imageSource = Play.Resources[resourceKey] ?? Play.Resources.PilotBasic;
 
   }
 
@@ -41,5 +68,9 @@ export class Pilot {
     return this.baseAttack;
   }
 
+}
 
+export function getRandomPilotType(): PilotType {
+  const keys = Array.from(PilotTypeAttributesMap.keys()).slice(0, 3);
+  return keys[Math.floor(Math.random() * keys.length)];
 }

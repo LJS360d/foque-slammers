@@ -5,6 +5,7 @@ import { Floatie } from "../entities/Floatie";
 import { game } from "../main";
 import type { ScoreManager } from "./ScoreManager";
 import { TurnManager } from "./TurnManager";
+import { getRandomPilotType, Pilot } from "../entities/Pilot";
 
 const ASSETS_DIR = "/foque-slammers/assets"
 export default class Play extends Scene {
@@ -12,6 +13,9 @@ export default class Play extends Scene {
     CoinFlipSpriteSheet48: new ImageSource(`${ASSETS_DIR}/seal_coin_flip_ss_48.png`),
     FloatieBlue: new ImageSource(`${ASSETS_DIR}/floatie-blue-256.png`),
     FloatieRed: new ImageSource(`${ASSETS_DIR}/floatie-red-256.png`),
+    PilotBasic: new ImageSource(`${ASSETS_DIR}/pilots/basic.png`),
+    PilotFreezing: new ImageSource(`${ASSETS_DIR}/pilots/freezing.png`),
+    PilotHeal: new ImageSource(`${ASSETS_DIR}/pilots/heal.png`),
   } as const;
 
   private hostFloaties: Map<number, Floatie> = new Map();
@@ -45,12 +49,9 @@ export default class Play extends Scene {
         owner: peerStore.isHost ? peerStore.peer.id : peerStore.connection?.peer ?? "",
         x: pos.x,
         y: pos.y,
-        hp: 100,
-        attack: 20,
-        effect: {
-          name: 'mega',
-          duration: 1
-        }
+        pilot: new Pilot({
+          type: getRandomPilotType()
+        }),
       });
       this.hostFloaties.set(node.id, node);
       this.add(node);
@@ -64,12 +65,9 @@ export default class Play extends Scene {
         x: pos.x,
         y: pos.y,
         flipHorizontal: true,
-        hp: 100,
-        attack: 20,
-        effect: {
-          name: 'heal',
-          duration: 0
-        }
+        pilot: new Pilot({
+          type: getRandomPilotType()
+        }),
       });
       this.guestFloaties.set(node.id, node);
       this.add(node);
@@ -285,18 +283,18 @@ export default class Play extends Scene {
     const backdrop = new Actor({
       x: 0,
       y: 0,
-      width: game.canvasWidth,
-      height: game.canvasHeight,
+      width: game.drawWidth,
+      height: game.drawHeight,
       color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
       anchor: Vector.Zero,
       collisionType: CollisionType.PreventCollision,
     });
 
     const textActor = new Actor({
-      x: backdrop.width / 2 - 128 - 256,
-      y: backdrop.height / 2 - 128,
+      x: game.halfDrawWidth - 128 - 64,
+      y: game.halfDrawHeight / 2,
       width: 128,
-      height: 128,
+      height: 64,
       anchor: Vector.Zero,
       collisionType: CollisionType.PreventCollision,
     });
@@ -318,10 +316,10 @@ export default class Play extends Scene {
     // todo analytics actors
 
     const rematchButton = new Actor({
-      x: 0,
-      y: 0,
-      width: game.canvasWidth,
-      height: game.canvasHeight,
+      x: game.halfDrawWidth - 200,
+      y: game.halfDrawHeight,
+      width: 200,
+      height: 40,
       color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
       anchor: Vector.Zero,
       collisionType: CollisionType.PreventCollision,
@@ -346,10 +344,10 @@ export default class Play extends Scene {
     });
 
     const quitButton = new Actor({
-      x: 0,
-      y: 0,
-      width: game.canvasWidth,
-      height: game.canvasHeight,
+      x: game.halfDrawWidth + 10,
+      y: game.halfDrawHeight,
+      width: 200,
+      height: 40,
       color: Color.fromRGB(0, 0, 0, 0.3), // Dark semi-transparent overlay
       anchor: Vector.Zero,
       collisionType: CollisionType.PreventCollision,

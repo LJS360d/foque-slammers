@@ -21,34 +21,24 @@ import {
 } from "excalibur";
 import { peerStore } from "../../store/peer.store";
 import { reflectVector } from "../../utils/vector";
+import type { ScoreManager } from "../scenes/ScoreManager";
 import Play from "../scenes/SlamGame";
 import type { TurnManager } from "../scenes/TurnManager";
-import type { ScoreManager } from "../scenes/ScoreManager";
+import type { Pilot } from "./Pilot";
 
 export interface FloatieOptions {
   turnManager: TurnManager;
   scoreManager: ScoreManager;
+  pilot: Pilot;
   id: number;
   owner: string; // game code
   x: number;
   y: number;
-  hp: number;
-  attack: number;
-  effect?: FloatieEffect;
   flipHorizontal?: boolean;
-}
-
-interface FloatieEffect {
-  name: string;
-  duration: number;
 }
 
 export class Floatie extends Actor {
   public owner: string;
-  public hp: number;
-  public maxHp: number;
-  private _attack: number;
-  public baseAttack: number;
 
   public isCharging = false;
   private startChargePosition: Vector = Vector.Zero;
@@ -63,7 +53,7 @@ export class Floatie extends Actor {
 
   private initialPos: Vector = Vector.Zero;
   private labelGraphic: Text;
-  private effect?: FloatieEffect;
+
   private hasActiveEffect = false;
 
   public static readonly RADIUS = 50;
@@ -80,25 +70,23 @@ export class Floatie extends Actor {
 
   private turnManager: TurnManager
   private scoreManager: ScoreManager;
+  public pilot: Pilot;
 
-  constructor({ id, owner, x, y, hp, attack, effect, flipHorizontal, turnManager, scoreManager }: FloatieOptions) {
+  constructor({ id, owner, x, y, flipHorizontal, turnManager, scoreManager, pilot }: FloatieOptions) {
     super({
       name: `${Floatie.name}-${id}`,
       pos: new Vector(x, y),
       collider: new CircleCollider({ radius: Floatie.RADIUS }),
       collisionType: CollisionType.Active,
     });
+    this.pilot = pilot;
     this.turnManager = turnManager;
     this.scoreManager = scoreManager;
     this.initialPos = new Vector(x, y);
     this._previousPosition = this.initialPos.clone();
     this._previousRotation = this.rotation;
     this.owner = owner;
-    this.hp = hp;
-    this.maxHp = hp;
-    this._attack = attack;
-    this.baseAttack = attack;
-    this.effect = effect;
+
     const isOwner = this.owner === peerStore.peer.id;
     const floatieSprite = new Sprite({
       image: isOwner
@@ -110,6 +98,16 @@ export class Floatie extends Actor {
       destSize: {
         width: Floatie.RADIUS * 2.5,
         height: Floatie.RADIUS * 2.5,
+      }
+    });
+    const pilotSprite = new Sprite({
+      image: pilot.imageSource,
+      width: 500,
+      height: 500,
+      flipHorizontal,
+      destSize: {
+        width: Floatie.RADIUS * 2,
+        height: Floatie.RADIUS * 2,
       }
     });
 
@@ -125,6 +123,10 @@ export class Floatie extends Actor {
           offset: Vector.Zero,
         },
         {
+          graphic: pilotSprite,
+          offset: new Vector(Floatie.RADIUS / 4, Floatie.RADIUS / 4),
+        },
+        {
           graphic: this.labelGraphic,
           offset: new Vector(0, Floatie.RADIUS * 2),
         },
@@ -134,17 +136,7 @@ export class Floatie extends Actor {
   }
 
   private get labelText(): string {
-    return `HP: ${this.hp}/${this.maxHp} ATK: ${this.attack}`;
-  }
-
-
-  public set attack(atk: number) {
-    this._attack = atk;
-    this.updateLabel();
-  }
-
-  public get attack(): number {
-    return this.baseAttack;
+    return `HP: ${this.pilot.hp}/${this.pilot.maxHp} ATK: ${this.pilot.attack}`;
   }
 
   update(engine: Engine, delta: number) {
@@ -207,9 +199,9 @@ export class Floatie extends Actor {
     if (other.owner instanceof Floatie) {
       if (this.vel.magnitude > 0.01) {
         if (other.owner.owner !== this.owner && !this.turnManager.isMyTurn) {
-          other.owner.applyDamage(this.attack);
-        } else if (this.effect && this.turnManager.isMyTurn) {
-          other.owner.applyEffect(this.effect);
+          other.owner.applyOpponentCollision(this.pilot);
+        } else if (this.pilot && this.turnManager.isMyTurn) {
+          other.owner.applyAllyCollision(this.pilot);
         }
       }
     }
@@ -378,10 +370,10 @@ export class Floatie extends Actor {
   }
 
   public applyDamage(damageAmount: number): void {
-    this.hp -= damageAmount;
+    this.pilot.hp -= damageAmount;
     this.updateLabel();
-    if (this.hp <= 0) {
-      this.hp = 0;
+    if (this.pilot.hp <= 0) {
+      this.pilot.hp = 0;
       // death animation
       this.vel = Vector.Zero;
       peerStore.connection?.send({
@@ -414,6 +406,20 @@ export class Floatie extends Actor {
     }
   }
 
+  public applyOpponentCollision(pilot: Pilot): void {
+    switch (pilot.type) {
+      case "Freezing":
+        this.vel = Vector.Zero;
+        // TODO encase in ice
+        this.applyDamage(pilot.attack);
+        break;
+
+      default:
+        break;
+    }
+    this.updateLabel();
+  }
+
   public async playDefeatAnimation() {
     return new Promise<void>((res) => {
       this.vel = Vector.Zero;
@@ -431,17 +437,16 @@ export class Floatie extends Actor {
     });
   }
 
-  public applyEffect(effect: FloatieEffect): void {
-    this.hasActiveEffect = true;
+  public applyAllyCollision(pilot: Pilot): void {
 
-    switch (effect.name) {
-      case "mega":
-        this.attack += 10;
+    switch (pilot.type) {
+      case "Mega":
+        this.pilot.attack += 10;
         this.updateLabel();
         // TODO effect animation
         break;
-      case "heal":
-        this.hp = Math.min(this.hp + 10, this.maxHp);
+      case "Heal":
+        this.pilot.hp = Math.min(this.pilot.hp + 10, this.pilot.maxHp);
         this.updateLabel();
         // TODO effect animation
         break;
@@ -451,7 +456,7 @@ export class Floatie extends Actor {
   }
 
   public reset(initialPosition: Vector): void {
-    this.hp = this.maxHp;
+    this.pilot.hp = this.pilot.maxHp;
     this.angularVelocity = 0;
     this.rotation = 0;
     this.vel = Vector.Zero;
